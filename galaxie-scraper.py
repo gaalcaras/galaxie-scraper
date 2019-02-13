@@ -1,11 +1,20 @@
 #! /bin/env python
 
+import argparse
 import csv
 import re
+import sys
+
 import mechanicalsoup
 
-NUM_CANDIDAT = '335650'
-PASSWD = 'vAEu0s61uHJhKuf)'
+PARSER = argparse.ArgumentParser("Récupère les offres ATER sur Galaxie "
+                                 "et les écrit au format csv.")
+PARSER.add_argument("-u", "--username", default=None,
+                    help="Votre numéro de candidat Galaxie")
+PARSER.add_argument("-p", "--password", default=None,
+                    help="Votre mot de passe Galaxie")
+ARGS = PARSER.parse_args()
+
 URL_BASE = 'https://galaxie.enseignementsup-recherche.gouv.fr/'
 
 FIELDS = {
@@ -92,13 +101,21 @@ def get_popup_id_from_onclick(elts):
         return None
     return [extract_id(e.get('onclick')) for e in elts]
 
+if not ARGS.username or not ARGS.password:
+    sys.exit("Veuillez donner vos identifiants Galaxie. "
+             "Exécutez galaxie-scraper.py -h pour en savoir plus.")
+
 print('Log into Galaxie...')
 BROWSER = mechanicalsoup.StatefulBrowser()
 BROWSER.open(URL_BASE + 'antares/can/astree/index.jsp')
 BROWSER.select_form('form[name="connexion"]')
-BROWSER['numecan'] = NUM_CANDIDAT
-BROWSER['pwd_RAW'] = PASSWD
+BROWSER['numecan'] = ARGS.username
+BROWSER['pwd_RAW'] = ARGS.password
 BROWSER.submit_selected()
+
+if not BROWSER.get_current_page().find('span', 'textWarning'):
+    sys.exit('La connexion à Galaxie a échoué. '
+             'Vérifiez vos identifiants.')
 
 print('Start Altair Session (getting CID)...')
 BROWSER.open(URL_BASE + 'altaircand/home.seam')
