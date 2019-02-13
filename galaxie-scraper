@@ -22,10 +22,16 @@ import mechanicalsoup
 
 PARSER = argparse.ArgumentParser("Récupère les offres ATER sur Galaxie "
                                  "et les écrit au format csv.")
+PARSER.add_argument("-ls", action="store_true",
+                    help="Donne la liste des sections disponibles. "
+                         "Ne nécessite pas vos identifiants Galaxie.")
 PARSER.add_argument("-u", "--username", default=None,
                     help="Votre numéro de candidat Galaxie")
 PARSER.add_argument("-p", "--password", default=None,
                     help="Votre mot de passe Galaxie")
+PARSER.add_argument("-s", "--sections", default=None,
+                    help="Les sections qui vous intéressent. "
+                         "Accepte jusqu'à 6 sections, séparées par des virgules.")
 ARGS = PARSER.parse_args()
 
 URL_BASE = 'https://galaxie.enseignementsup-recherche.gouv.fr/'
@@ -76,6 +82,66 @@ FIELDS = {
     'dossier_aucun': 'j_idt128_4_j_idt131'
 }
 
+SECTIONS = (
+    "01: Droit privé et sciences criminelles",
+    "02: Droit public",
+    "03: Histoire du droit et des institutions",
+    "04: Science politique",
+    "05: Sciences économiques",
+    "06: Sciences de gestion",
+    "07: Sciences du langage : linguistique et phonétique générales ...",
+    "08: Langues et littératures anciennes",
+    "09: Langue et littérature françaises",
+    "10: Littératures comparées",
+    "11: Langues et littératures anglaises et anglo-saxonnes",
+    "12: Langues et littératures germaniques et scandinaves",
+    "13: Langues et littératures slaves",
+    "14: Langues et littératures romanes :  espagnol, italien, ...",
+    "15: Langues et littératures arabes, chinoises, japonaises, ...",
+    "16: Psychologie, psychologie clinique, psychologie sociale",
+    "17: Philosophie",
+    "18: Arts(architect., appl.,plast.,spect., musique, musicol., ...",
+    "19: Sociologie, démographie",
+    "20: Anthropologie biologique, ethnologie, préhistoire",
+    "21: Histoire, civilisation, archéol. et art des mondes anciens et ...",
+    "22: Histoire et civilisations : histoire des mondes modernes...",
+    "23: Géographie physique, humaine, économique et régionale",
+    "24: Aménagement de l'espace, urbanisme",
+    "25: Mathématiques",
+    "26: Mathématiques appliquées et applications des mathématiques",
+    "27: Informatique",
+    "28: Milieux denses et matériaux",
+    "29: Constituants élémentaires",
+    "30: Milieux dilués et optique",
+    "31: Chimie théorique, physique, analytique",
+    "32: Chimie organique, minérale, industrielle",
+    "33: Chimie des matériaux",
+    "34: Astronomie, astrophysique",
+    "35: Structure et évolution de la terre et des autres planètes",
+    "36: Terre solide : géodynamique des enveloppes supérieures, ...",
+    "37: Météorologie, océanographie physique et physique de ...",
+    "60: Mécanique, génie mécanique, génie civil",
+    "61: Génie informatique, automatique et traitement du signal",
+    "62: Energétique, génie des procédés",
+    "63: Génie électrique, électronique, photonique et systèmes",
+    "64: Biochimie et biologie moléculaire",
+    "65: Biologie cellulaire",
+    "66: Physiologie",
+    "67: Biologie des populations et écologie",
+    "68: Biologie des organismes",
+    "69: Neurosciences",
+    "70: Sciences de l'éducation",
+    "71: Sciences de l'information et de la communication",
+    "72: Epistémologie, histoire des sciences et des techniques",
+    "73: Cultures et langues régionales",
+    "74: Sciences et techniques des activités physiques et sportives",
+    "76: Théologie catholique",
+    "77: Théologie protestante",
+    "85: Sc. physicochim. et ingénierie appliquée à la santé (ex 39è)",
+    "86: Sc. du médicament et des autres produits de santé (ex 40è)",
+    "87: Sc. biologiques, fondamentales et cliniques (ex 41è)"
+)
+
 def get_position(browser):
     """
     Extrait les valeurs des champs sur une fiche de poste ATER.
@@ -120,14 +186,27 @@ def get_popup_id_from_onclick(elts):
         return None
     return [extract_id(e.get('onclick')) for e in elts]
 
+if ARGS.ls:
+    print('Liste des sections disponibles :')
+    sys.exit('\n'.join(SECTIONS))
+
 if not ARGS.username or not ARGS.password:
     sys.exit("Veuillez donner vos identifiants Galaxie. "
-             "Exécutez galaxie-scraper.py -h pour en savoir plus.")
+             "Exécutez `galaxie-scraper -h` pour en savoir plus.")
+
+if not ARGS.sections:
+    sys.exit("Veuillez jusqu'à 6 sections qui vous intéressent. "
+             "Exécutez `galaxie-scraper -h` pour en savoir plus.")
+
+numbers = [int(s[:2]) for s in SECTIONS]
+SECTIONS_REQ = [numbers.index(int(s)) for s in ARGS.sections.split(',')]
+
+print('Vos sections :')
+print('\n'.join([SECTIONS[i] for i in SECTIONS_REQ]), '\n')
 
 print('Connexion à Galaxie...')
 BROWSER = mechanicalsoup.StatefulBrowser()
 BROWSER.open(URL_BASE + 'antares/can/astree/index.jsp')
-BROWSER.launch_browser()
 BROWSER.select_form('form[name="connexion"]')
 BROWSER['numecan'] = ARGS.username
 BROWSER['pwd_RAW'] = ARGS.password
@@ -143,10 +222,8 @@ BROWSER.open(URL_BASE + 'altaircand/ActureC021.seam?cid=' + BROWSER.get_url()[-5
 
 print('Recherche des positions ATER...')
 BROWSER.select_form('form[id="TdtCtuEdit"]')
-BROWSER['TdtCtuEdit_section1'] = 3
-BROWSER['TdtCtuEdit_section2'] = 18
-BROWSER['TdtCtuEdit_section3'] = 48
-BROWSER.launch_browser()
+for i, section in enumerate(SECTIONS_REQ):
+    BROWSER['TdtCtuEdit_section' + str(i+1)] = section
 BROWSER.submit_selected()
 
 POSITIONS = list()
