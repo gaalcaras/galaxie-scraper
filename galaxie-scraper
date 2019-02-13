@@ -1,4 +1,17 @@
 #! /bin/env python
+"""
+Script: galaxie-scraper
+Licence: GPL3
+Auteur: Gabriel Alcaras <gabriel.alcaras@ehess.fr>
+
+galaxie-scraper est un script python qui récupère les offres de postes d'ATER
+sur la plateforme Galaxie et les exporte sous forme de fichier .csv.
+
+Utilisez `galaxie-scraper -h` pour en connaître le mode de fonctionnement.
+
+Ce script est fourni sans aucune garantie. Il utilise vos identifiants
+personnels pour se connecter à Galaxie et y effectuer des requêtes.
+"""
 
 import argparse
 import csv
@@ -64,6 +77,10 @@ FIELDS = {
 }
 
 def get_position(browser):
+    """
+    Extrait les valeurs des champs sur une fiche de poste ATER.
+    Retourne un dictionnaire des valeurs.
+    """
     result = dict()
     for var_name, field_name in FIELDS.items():
         field = browser.get_current_page().find(attrs={'name': field_name})
@@ -84,6 +101,7 @@ def get_position(browser):
     return result
 
 def get_url_from_onclick(elts):
+    "Retourne les urls de liens via leur attribut onclick"
     urls = []
     pattern = re.compile(r"openPopUp\(\\'(.*)\\'\)(;|',).*$")
     for elt in elts:
@@ -93,6 +111,7 @@ def get_url_from_onclick(elts):
     return urls
 
 def get_popup_id_from_onclick(elts):
+    "Retourne l'identifiant des popups via leur attribut onclick"
     def extract_id(onclick):
         pattern = re.compile(r"\{'(.*)':.*\}")
         search = pattern.search(onclick)
@@ -105,9 +124,10 @@ if not ARGS.username or not ARGS.password:
     sys.exit("Veuillez donner vos identifiants Galaxie. "
              "Exécutez galaxie-scraper.py -h pour en savoir plus.")
 
-print('Log into Galaxie...')
+print('Connexion à Galaxie...')
 BROWSER = mechanicalsoup.StatefulBrowser()
 BROWSER.open(URL_BASE + 'antares/can/astree/index.jsp')
+BROWSER.launch_browser()
 BROWSER.select_form('form[name="connexion"]')
 BROWSER['numecan'] = ARGS.username
 BROWSER['pwd_RAW'] = ARGS.password
@@ -117,51 +137,52 @@ if not BROWSER.get_current_page().find('span', 'textWarning'):
     sys.exit('La connexion à Galaxie a échoué. '
              'Vérifiez vos identifiants.')
 
-print('Start Altair Session (getting CID)...')
+print('Ouvre une session Altair (récupère le CID)...')
 BROWSER.open(URL_BASE + 'altaircand/home.seam')
 BROWSER.open(URL_BASE + 'altaircand/ActureC021.seam?cid=' + BROWSER.get_url()[-5:])
 
-print('Search for ATER positions...')
+print('Recherche des positions ATER...')
 BROWSER.select_form('form[id="TdtCtuEdit"]')
 BROWSER['TdtCtuEdit_section1'] = 3
 BROWSER['TdtCtuEdit_section2'] = 18
 BROWSER['TdtCtuEdit_section3'] = 48
+BROWSER.launch_browser()
 BROWSER.submit_selected()
 
 POSITIONS = list()
 
-print('Get current open positions...')
+print('Récupération des postes actuellement ouverts...')
 CURRENT = BROWSER.links(title="Consulter l'appel à candidatures - nouvelle fenêtre")
 CURRENT_URLS = get_url_from_onclick(CURRENT)
-print(f'Found {len(CURRENT_URLS)} currently open positions.')
+print(f'{len(CURRENT_URLS)} postes actuellement ouverts ont été trouvés.')
 
 NEXT = BROWSER.links(id="choixAppel_lien_prochain_appel")
 NEXT_URLS = get_url_from_onclick(NEXT)[0]
 
 if CURRENT_URLS:
     for i, url in enumerate(CURRENT_URLS):
-        print(f'Retrieving currently open position {i+1}/{len(CURRENT_URLS)}.')
+        print(f"Récupération d'un poste actuellement ouvert {i+1}/{len(CURRENT_URLS)}.")
         BROWSER.open(url)
         POSITIONS.append(get_position(BROWSER))
 
-print('Get soon-to-be open positons...')
+print('Récupère les postes prochainement ouverts...')
 BROWSER.open(NEXT_URLS)
 POPUP_LINKS = BROWSER.links(title="Consulter l'appel à candidatures - nouvelle fenêtre")
 POPUP_IDS = get_popup_id_from_onclick(POPUP_LINKS)
-print(f'Found {len(POPUP_LINKS)} soon-to-be open positions.')
+print(f'{len(POPUP_LINKS)} postes prochainement ouverts ont été trouvés.')
 
 for i, pop_id in enumerate(POPUP_IDS):
     if BROWSER.get_url() != NEXT_URLS:
         BROWSER.open(NEXT_URLS)
 
-    print(f'Retrieving soon-to-be open position {i+1}/{len(POPUP_IDS)}.')
+    print(f"Récupération d'un poste prochainement ouvert {i+1}/{len(POPUP_IDS)}.")
     BROWSER.select_form('form[id="j_idt20"]')
     BROWSER.new_control('hidden', pop_id, pop_id)
     BROWSER.submit_selected()
 
     POSITIONS.append(get_position(BROWSER))
 
-print('Writing to file...')
+print('Exportation des postes au format csv...')
 with open('ater.csv', 'w') as csvfile:
     FIELDNAMES = FIELDS.keys()
     WRITER = csv.DictWriter(csvfile, fieldnames=FIELDNAMES)
@@ -170,4 +191,4 @@ with open('ater.csv', 'w') as csvfile:
     for position in POSITIONS:
         WRITER.writerow(position)
 
-print('All done!')
+print("C'est terminé!")
