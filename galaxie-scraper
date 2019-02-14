@@ -1,4 +1,5 @@
-#! /bin/env python
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Script: galaxie-scraper
 Licence: GPL3
@@ -163,6 +164,11 @@ def get_position(browser):
         else:
             field_value = None
 
+        if field_value:
+            field_value = field_value.encode('utf8')
+            if not isinstance(field_value, str):
+                field_value = field_value.decode()
+
         result.update({var_name: field_value})
     return result
 
@@ -198,11 +204,11 @@ if not ARGS.sections:
     sys.exit("Veuillez jusqu'à 6 sections qui vous intéressent. "
              "Exécutez `galaxie-scraper -h` pour en savoir plus.")
 
-numbers = [int(s[:2]) for s in SECTIONS]
-SECTIONS_REQ = [numbers.index(int(s)) for s in ARGS.sections.split(',')]
+NUMBERS = [int(s[:2]) for s in SECTIONS]
+SECTIONS_REQ = [NUMBERS.index(int(s)) for s in ARGS.sections.split(',')]
 
 print('Vos sections :')
-print('\n'.join([SECTIONS[i] for i in SECTIONS_REQ]), '\n')
+print('\n'.join([SECTIONS[i] for i in SECTIONS_REQ]))
 
 print('Connexion à Galaxie...')
 BROWSER = mechanicalsoup.StatefulBrowser()
@@ -231,14 +237,14 @@ POSITIONS = list()
 print('Récupération des postes actuellement ouverts...')
 CURRENT = BROWSER.links(title="Consulter l'appel à candidatures - nouvelle fenêtre")
 CURRENT_URLS = get_url_from_onclick(CURRENT)
-print(f'{len(CURRENT_URLS)} postes actuellement ouverts ont été trouvés.')
+print('%s postes actuellement ouverts ont été trouvés.' % len(CURRENT_URLS))
 
 NEXT = BROWSER.links(id="choixAppel_lien_prochain_appel")
 NEXT_URLS = get_url_from_onclick(NEXT)[0]
 
 if CURRENT_URLS:
     for i, url in enumerate(CURRENT_URLS):
-        print(f"Récupération d'un poste actuellement ouvert {i+1}/{len(CURRENT_URLS)}.")
+        print("Récupération d'un poste actuellement ouvert %d/%d" % (i+1, len(CURRENT_URLS)))
         BROWSER.open(url)
         POSITIONS.append(get_position(BROWSER))
 
@@ -246,13 +252,13 @@ print('Récupère les postes prochainement ouverts...')
 BROWSER.open(NEXT_URLS)
 POPUP_LINKS = BROWSER.links(title="Consulter l'appel à candidatures - nouvelle fenêtre")
 POPUP_IDS = get_popup_id_from_onclick(POPUP_LINKS)
-print(f'{len(POPUP_LINKS)} postes prochainement ouverts ont été trouvés.')
+print('%s postes prochainement ouverts ont été trouvés.' % len(POPUP_LINKS))
 
 for i, pop_id in enumerate(POPUP_IDS):
     if BROWSER.get_url() != NEXT_URLS:
         BROWSER.open(NEXT_URLS)
 
-    print(f"Récupération d'un poste prochainement ouvert {i+1}/{len(POPUP_IDS)}.")
+    print("Récupération d'un poste prochainement ouvert %d/%d" % (i+1, len(POPUP_IDS)))
     BROWSER.select_form('form[id="j_idt20"]')
     BROWSER.new_control('hidden', pop_id, pop_id)
     BROWSER.submit_selected()
