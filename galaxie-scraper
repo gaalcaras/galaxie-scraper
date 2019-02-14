@@ -12,6 +12,8 @@ Utilisez `galaxie-scraper -h` pour en connaître le mode de fonctionnement.
 
 Ce script est fourni sans aucune garantie. Il utilise vos identifiants
 personnels pour se connecter à Galaxie et y effectuer des requêtes.
+
+Ce script est une nouvelle implémentation d'un script R de Julien Boelaert.
 """
 
 import argparse
