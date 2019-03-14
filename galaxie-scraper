@@ -18,8 +18,12 @@ Ce script est une nouvelle implémentation d'un script R de Julien Boelaert.
 
 import argparse
 import csv
+import datetime
+import os
 import re
 import sys
+
+from shutil import copyfile
 
 import mechanicalsoup
 
@@ -266,6 +270,9 @@ for i, pop_id in enumerate(POPUP_IDS):
     BROWSER.submit_selected()
 
     POSITIONS.append(get_position(BROWSER))
+
+if os.path.isfile('ater.csv'):
+    copyfile('ater.csv', 'ater_archived_{}.csv'.format(datetime.datetime.today().isoformat()))
 
 print('Exportation des postes au format csv...')
 with open('ater.csv', 'w') as csvfile:
