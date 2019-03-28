@@ -244,9 +244,7 @@ print('Récupération des postes actuellement ouverts...')
 CURRENT = BROWSER.links(title="Consulter l'appel à candidatures - nouvelle fenêtre")
 CURRENT_URLS = get_url_from_onclick(CURRENT)
 print('%s postes actuellement ouverts ont été trouvés.' % len(CURRENT_URLS))
-
 NEXT = BROWSER.links(id="choixAppel_lien_prochain_appel")
-NEXT_URLS = get_url_from_onclick(NEXT)[0]
 
 if CURRENT_URLS:
     for i, url in enumerate(CURRENT_URLS):
@@ -254,22 +252,27 @@ if CURRENT_URLS:
         BROWSER.open(url)
         POSITIONS.append(get_position(BROWSER))
 
-print('Récupère les postes prochainement ouverts...')
-BROWSER.open(NEXT_URLS)
-POPUP_LINKS = BROWSER.links(title="Consulter l'appel à candidatures - nouvelle fenêtre")
-POPUP_IDS = get_popup_id_from_onclick(POPUP_LINKS)
-print('%s postes prochainement ouverts ont été trouvés.' % len(POPUP_LINKS))
+if NEXT:
+    NEXT_URLS = get_url_from_onclick(NEXT)[0]
 
-for i, pop_id in enumerate(POPUP_IDS):
-    if BROWSER.get_url() != NEXT_URLS:
-        BROWSER.open(NEXT_URLS)
+    print('Récupère les postes prochainement ouverts...')
+    BROWSER.open(NEXT_URLS)
+    POPUP_LINKS = BROWSER.links(title="Consulter l'appel à candidatures - nouvelle fenêtre")
+    POPUP_IDS = get_popup_id_from_onclick(POPUP_LINKS)
+    print('%s postes prochainement ouverts ont été trouvés.' % len(POPUP_LINKS))
 
-    print("Récupération d'un poste prochainement ouvert %d/%d" % (i+1, len(POPUP_IDS)))
-    BROWSER.select_form('form[id="j_idt20"]')
-    BROWSER.new_control('hidden', pop_id, pop_id)
-    BROWSER.submit_selected()
+    for i, pop_id in enumerate(POPUP_IDS):
+        if BROWSER.get_url() != NEXT_URLS:
+            BROWSER.open(NEXT_URLS)
 
-    POSITIONS.append(get_position(BROWSER))
+        print("Récupération d'un poste prochainement ouvert %d/%d" % (i+1, len(POPUP_IDS)))
+        BROWSER.select_form('form[id="j_idt20"]')
+        BROWSER.new_control('hidden', pop_id, pop_id)
+        BROWSER.submit_selected()
+
+        POSITIONS.append(get_position(BROWSER))
+else:
+    print('Pas de postes prochainement ouverts...')
 
 if os.path.isfile('ater.csv'):
     copyfile('ater.csv', 'ater_archived_{}.csv'.format(datetime.datetime.today().isoformat()))
